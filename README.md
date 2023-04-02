@@ -1,5 +1,5 @@
 # ffmpeg-nvidia
-Enhance ffmpeg with NVIDIA hardware acceleration
+Encode Motion videos with ffmpeg and NVIDIA hardware acceleration
 
 ## Introduction
 
