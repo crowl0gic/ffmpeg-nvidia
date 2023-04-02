@@ -1,5 +1,5 @@
 # ffmpeg-nvidia
-Compile ffmpeg to utilize NVIDIA hardware acceleration
+Enhance ffmpeg with NVIDIA hardware acceleration
 
 ## Introduction
 
