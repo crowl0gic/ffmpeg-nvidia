@@ -5,7 +5,9 @@ Compile ffmpeg to utilize NVIDIA hardware acceleration
 
 My use case is unique, but it illustrates how open source software can be used to create high performance custom solutions.
 
-One of my security cameras generates 1920 x 1280 @ 30FPS MJPEG footage, which is then processed by Motion for activity. Despite running on a capable Ubuntu 20.04 server (Xeon 3.8GHz 6 core, 64GB RAM, SSD), it subjected Motion to a significant workload. I could always tell when an event occurred because my CPU fan would scream to 4000 RPM then decelerate once temps were normal again. Due to form factor constraints, I can only run a low profile cooler. Noise or thermal throttling were my choices :E
+I'm running Motion v4.5.1 on a Debian 11 (Bullseye) server with a handful of PoE network cameras. These instructions may apply to users on other platforms, but I can't guarantee it.
+
+One of my security cameras generates 1920 x 1280 @ 30FPS MJPEG footage, which is processed by Motion. Despite running on a capable Ubuntu 20.04 server (Xeon 3.8GHz 6 core, 64GB RAM, SSD), it was a significant workload. I could always tell when an event occurred because my CPU fan would scream to 4000 RPM then decelerate once temps were normal again. Due to form factor constraints, I can only run a low profile (Noctua L9i) cooler. Noise or thermal throttling are my choices :E
 
 ## Getting Started
 
