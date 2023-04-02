@@ -3,11 +3,11 @@ Compile ffmpeg to utilize NVIDIA hardware acceleration
 
 ## Introduction
 
-My use case is unique, but it illustrates how open source software can be used to create high performance custom solutions.
+My use case is unique, but it illustrates how open source software can be used to create custom solutions.
 
-I'm running Motion v4.5.1 on a Debian 11 (Bullseye) server with a handful of PoE network cameras. These instructions may apply to users on other platforms, but I can't guarantee it.
+I'm running [Motion](https://motion-project.github.io/index.html) v4.5.1 on a [Debian](https://www.debian.org/) 11 (Bullseye) server with a handful of PoE network cameras. I've been running Motion for at least 5 years and can't say enough good things about it. These instructions may apply to other platforms, but I can't guarantee it.
 
-One of my security cameras generates 1920 x 1280 @ 30FPS MJPEG footage, which is processed by Motion. Despite running on a capable Ubuntu 20.04 server (Xeon 3.8GHz 6 core, 64GB RAM, SSD), it was a significant workload. I could always tell when an event occurred because my CPU fan would scream to 4000 RPM then decelerate once temps were normal again. Due to form factor constraints, I can only run a low profile (Noctua L9i) cooler. Noise or thermal throttling are my choices :E
+One of my security cameras generates 1920 x 1280 @ 30FPS MJPEG footage, which is processed by Motion. Despite running on a capable Ubuntu 20.04 server (Xeon 3.8GHz 6 core, 64GB RAM, SSD), it was a significant workload. I could always tell when an event occurred because my CPU fan would scream to 4000 RPM then decelerate once temps were normal again. Due to form factor constraints, I can only run a low profile (Noctua L9i) cooler. Noise or thermal throttling are my options :E
 
 ## Getting Started
 
@@ -17,13 +17,17 @@ Don't install the .deb files that are provided by Debian for Bullseye. This appl
 
 Stay away from the Cuda toolkit .deb that is provided by NVIDIA. I suspect that this was actually intended for Ubuntu, as it doesn't work with Debian. I ran into some weird issues where it either didn't do anything, partially installed the Cuda 12.1 libraries, caused some library collision errors, and (finally) wouldn't uninstall cleanly and broke my apt. I did a fresh installation of Debian to resolve that.
 
-As of 4/1/2023, you will need Cuda 12+ to make use of h264_nvenc and graphics driver v5.30+ for the Cuda toolkit.
+As of 4/1/2023, you will need:
+* Nvidia graphics driver v5.30+ for Cuda 12 and the toolkit
+* Cuda 12 to make use of h264_nvenc
+
+I didn't find a solution that would enable graphics driver v4.70 and Cuda 11 to work with h264_nvenc, or I would've stayed with the stable driver.
 
 I installed this on a headless machine, so I didn't encounter any issues with X compatibility.
 
 ### Why compile?
 
-None of the non-free features are included with ffmpeg binaries. If you want to use your NVIDIA GPU you'll need to compile your own ffmpeg, get a Docker container, or use someone else's binaries. 
+None of the non-free features are included with ffmpeg binaries. If you want to use your NVIDIA GPU you'll need to compile your own ffmpeg, or use someone else's binaries. 
 
 Let's get started!
 
@@ -53,8 +57,8 @@ sudo apt install linux-headers-$(uname -r) gcc make acpid dkms libglvnd-core-dev
 ```
 ### Download (but don't install yet)
 
-NVIDIA Graphics Driver: https://www.nvidia.com/download/index.aspx (select Download Type -> "New Feature branch" for v5.30+)
-NVIDIA Cuda Toolkit (pick runfile): https://developer.nvidia.com/cuda-downloads
+* NVIDIA Graphics Driver: https://www.nvidia.com/download/index.aspx (select Download Type -> "New Feature branch" for v5.30+)
+* NVIDIA Cuda Toolkit (pick runfile): https://developer.nvidia.com/cuda-downloads
 
 ### Disable Nouveau modules
 
@@ -74,7 +78,7 @@ Note the graphics driver and Cuda versions
      -   PATH includes /usr/local/cuda-12.1/bin
      -   LD_LIBRARY_PATH includes /usr/local/cuda-12.1/lib64, or, add /usr/local/cuda-12.1/lib64 to /etc/ld.so.conf and run ldconfig as root
     ```
-    3. Make your PATH (in ~/.profile) is similar to: `PATH="/usr/local/cuda-12.1/bin:$PATH"`
+    3. Your PATH (in ~/.profile) should be similar to: `PATH="/usr/local/cuda-12.1/bin:$PATH"`
 
 Restart your system!
  
@@ -87,6 +91,7 @@ Install packages as outlined by this guide: https://trac.ffmpeg.org/wiki/Compila
 I also included nasm, libx264, and libx265
 
 Also see https://trac.ffmpeg.org/wiki/HWAccelIntro#NVENC
+
 Note: This page cites "compiling FFmpeg with `--enable-cuda-llvm`" as a requirement, however `--enable-cuda-nvcc` supersedes this 
 
 ### Install nv-codec-headers
@@ -139,23 +144,23 @@ Getting the parameters right can be challenging. I recommend testing them out as
 ```
 event_extpipe_put: Error writing in pipe , state error 1: Broken pipe
 ```
-Performing the steps below will save a lot of time versus testing Motion live. 
+Performing the steps below will save a _**lot**_ of time versus testing Motion live. 
 
 **Note 3:** Once everything is working, you may see an occasional error of:
 ```
 event_extpipe_put: pipe ffmpeg -y -f ... <filepath> not created or closed already
 ```
-This is a [known issue](https://github.com/Motion-Project/motion/issues/1659) and won't impact actual functionality
+This is a [known issue](https://github.com/Motion-Project/motion/issues/1659) with Motion and won't impact actual functionality
 
 1. From the /etc/motion configuration directory, set aside a camera configuration for testing purposes. Load it in /etc/motion/motion.conf
-2. Use the following settings to dump the video output to a file
+2. Use the following settings to dump Motion's video output to a file
 ```
 movie_output off
 
 movie_extpipe_use on
 movie_extpipe cat > /tmp/stream 
 ```
-3. Trigger an event in Motion and verify that /tmp/stream contains binary data
+3. Trigger an event in Motion and verify that /tmp/stream contains binary data.
 4. Follow the ffmpeg example provided by Motion: https://motion-project.github.io/motion_config.html#movie_extpipe
 ```
 movie_extpipe ffmpeg -y -f rawvideo -pix_fmt yuv420p -video_size %wx%h -framerate %fps -i pipe:0 -vcodec libx264 -preset ultrafast -f mp4 %f.mp4
@@ -164,9 +169,9 @@ movie_extpipe ffmpeg -y -f rawvideo -pix_fmt yuv420p -video_size %wx%h -framerat
     1. `-y` # overwrites output files without a prompt
     2. `-f rawvideo`
     3. `-pix_fmt yuv420p`
-    4. `-video_size %wx%h` # fields auto filled by Motion, defined in motion camera config file. Substitute with your video dimensions.
-    5. `framerate %fps` # field auto filled by Motion. Substitute with your video's FPS.
-    6. `-i /tmp/stream` # will be replaced with `-i pipe:0` in prod
+    4. `-video_size %wx%h` # fields auto filled by Motion, defined in motion camera config file. Substitute with your video dimensions (ex. 1280x960).
+    5. `framerate %fps` # field auto filled by Motion. Substitute with your video's FPS (ex. 12)
+    6. `-i /tmp/stream` # will be replaced with `-i pipe:0` in Motion
     7. The rest of the fields pertain to the output format
 
 Once you've identified an ffmpeg command that works and successfully encodes the stream file, remove `movie_extpipe cat > /tmp/stream` from your Motion config and add your own with the format (`%`) values.
@@ -182,7 +187,8 @@ I didn't have time to run tests and generate scientific results, but here are my
 
 1. Video sizes are between 1/3 to 1/2 of original size (!)
 2. Videos retained nearly identical quality to Motion's built in ffmpeg output and are generated more quickly
-3. Lower server load and fewer temperature spikes during events
+3. No discernible loss of quality
+4. Lower server load and fewer temperature spikes during events
 
-If everything works as expected, nvidia-smi should display ffmpeg activity during encoding
+If everything works as expected, nvidia-smi should display ffmpeg process activity during encoding
 ![nvidia-ffmpeg](nvidia-smi-ffmpeg.png)
