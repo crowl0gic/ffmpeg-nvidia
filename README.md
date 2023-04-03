@@ -165,7 +165,7 @@ movie_extpipe cat > /tmp/stream
 ```
 movie_extpipe ffmpeg -y -f rawvideo -pix_fmt yuv420p -video_size %wx%h -framerate %fps -i pipe:0 -vcodec libx264 -preset ultrafast -f mp4 %f.mp4
 ```
-5. Since the stream is a slice of video data, it doesn't contain an identifying header that ffmpeg can readily use to identify its content. We need to tell ffmpeg what it's working with. I recommend switching to the /tmp directory and testing your ffmpeg commands there to catch and resolve error messages.
+5. Since the stream is a slice of video data, it doesn't contain an identifying header that ffmpeg can readily use to identify its content. We need to tell ffmpeg what it's working with (steps i-v are for this purpose). I recommend switching to the /tmp directory and testing your ffmpeg commands there to catch and resolve error messages.
     1. `-y` # overwrites output files without a prompt
     2. `-f rawvideo`
     3. `-pix_fmt yuv420p`
