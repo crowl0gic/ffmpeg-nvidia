@@ -7,7 +7,7 @@ My use case is unique, but it illustrates how open source software can be used t
 
 I'm running [Motion](https://motion-project.github.io/index.html) v4.5.1 on a [Debian](https://www.debian.org/) 11 (Bullseye) server with a handful of PoE network cameras. I've been running Motion for at least 5 years and can't say enough good things about it. These instructions may apply to other platforms, but I can't guarantee it.
 
-One of my security cameras generates 1920 x 1280 @ 30FPS MJPEG footage, which is processed by Motion. Despite running on a capable Ubuntu 20.04 server (Xeon 3.8GHz 6 core, 64GB RAM, SSD), it was a significant workload. I could always tell when an event occurred because my CPU fan would scream to 4000 RPM then decelerate once temps were normal again. Due to form factor constraints, I can only run a low profile (Noctua L9i) cooler. Noise or thermal throttling are my options :E
+One of my security cameras generates 1920 x 1280 @ 30FPS footage as an MJPEG stream. Motion processes this output and triggers an event when changes are detected. This process caused my otherwise capable server (Xeon 3.8GHz 6 core, 64GB RAM, SSD, Ubuntu 20.04 then Debian 11.0) some grief. I could always tell when an event occurred because my CPU fan would scream to 4000 RPM then decelerate once temps were normal again. Due to form factor constraints, I can only run a low profile (Noctua L9i) cooler. Noise or thermal throttling are my options :E
 
 ## Getting Started
 
@@ -15,7 +15,7 @@ One of my security cameras generates 1920 x 1280 @ 30FPS MJPEG footage, which is
 
 Don't install the .deb files that are provided by Debian for Bullseye. This applies to the graphics driver and Cuda toolkit.
 
-Stay away from the Cuda toolkit .deb that is provided by NVIDIA. I suspect that this was actually intended for Ubuntu, as it doesn't work with Debian. I ran into some weird issues where it either didn't do anything, partially installed the Cuda 12.1 libraries, caused some library collision errors, and (finally) wouldn't uninstall cleanly and broke my apt. I did a fresh installation of Debian to resolve that.
+Avoid the Cuda toolkit .deb that is provided by NVIDIA. I suspect that this was actually intended for Ubuntu, as it doesn't work with Debian. I ran into some weird issues where it either didn't do anything, partially installed the Cuda 12.1 libraries, caused some library collision errors, and (finally) wouldn't uninstall cleanly and broke my apt. I did a fresh installation of Debian to resolve that.
 
 As of 4/1/2023, you will need:
 * Nvidia graphics driver v5.30+ for Cuda 12 and the toolkit
@@ -23,7 +23,7 @@ As of 4/1/2023, you will need:
 
 I didn't find a solution that would enable graphics driver v4.70 and Cuda 11 to work with h264_nvenc, or I would've stayed with the stable driver.
 
-I installed this on a headless machine, so I didn't encounter any issues with X compatibility.
+I installed this on a headless machine, so I didn't encounter any issues with X compatibility. YMMV!
 
 ### Why compile?
 
