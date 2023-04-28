@@ -1,11 +1,11 @@
 # ffmpeg-nvidia
-Encode Motion videos with ffmpeg and NVIDIA hardware acceleration
+Process Motion videos with ffmpeg and NVIDIA hardware acceleration
 
 ## Introduction
 
 My use case is unique, but it illustrates how open source software can be used to create custom solutions.
 
-I'm running [Motion](https://motion-project.github.io/index.html) v4.5.1 on a [Debian](https://www.debian.org/) 11 (Bullseye) server with a handful of PoE network cameras. I've been running Motion for at least 5 years and can't say enough good things about it. These instructions may apply to other platforms, but I can't guarantee it.
+I'm running [Motion](https://motion-project.github.io/index.html) v4.5.1 on a [Debian](https://www.debian.org/) 11 (Bullseye) server with a handful of PoE network cameras. I've been running Motion for at least 5 years and can't say enough good things about it. These instructions may apply to other platforms, but I can't guarantee that.
 
 One of my security cameras generates 1920 x 1280 @ 30FPS footage as an MJPEG stream. Motion processes this output and triggers an event when changes are detected. This process caused my otherwise capable server (Xeon 3.8GHz 6 core, 64GB RAM, SSD, Ubuntu 20.04 then Debian 11.0) some grief. I could always tell when an event occurred because my CPU fan would scream to 4000 RPM then decelerate once temps were normal again. Due to form factor constraints, I can only run a low profile (Noctua L9i) cooler. Noise or thermal throttling are my options :E
 
@@ -21,7 +21,7 @@ As of 4/1/2023, you will need:
 * Nvidia graphics driver v5.30+ for Cuda 12 and the toolkit
 * Cuda 12 to make use of h264_nvenc
 
-I didn't find a solution that would enable graphics driver v4.70 and Cuda 11 to work with h264_nvenc, or I would've stayed with the stable driver.
+I didn't find a solution that enables graphics driver v4.70 and Cuda 11 to work with h264_nvenc, or I would've stayed with the stable driver.
 
 I installed this on a headless machine, so I didn't encounter any issues with X compatibility. YMMV!
 
@@ -130,6 +130,8 @@ make -j $(nproc) # Use all available processor cores
 sudo make install
 ```
 
+As an added benefit, this will create ffmpeg libraries that support NVIDIA decoding, which we'll be using later.
+
 ## Set up ffmpeg for Motion
 
 I referred to this [excellent post](https://superuser.com/a/1296511) for an overview of ffmpeg h264_nvenc settings 
@@ -150,7 +152,7 @@ Performing the steps below will save a _**lot**_ of time versus testing Motion l
 ```
 event_extpipe_put: pipe ffmpeg -y -f ... <filepath> not created or closed already
 ```
-This is a [known issue](https://github.com/Motion-Project/motion/issues/1659) with Motion and won't impact actual functionality
+This is a [known issue](https://github.com/Motion-Project/motion/issues/1659) with Motion and won't impact actual functionality. As of 4/6/2023, the fix has been merged into the main release branch. 
 
 1. From the /etc/motion configuration directory, set aside a camera configuration for testing purposes. Load it in /etc/motion/motion.conf
 2. Use the following settings to dump Motion's video output to a file
@@ -158,6 +160,7 @@ This is a [known issue](https://github.com/Motion-Project/motion/issues/1659) wi
 movie_output off
 
 movie_extpipe_use on
+
 movie_extpipe cat > /tmp/stream 
 ```
 3. Trigger an event in Motion and verify that /tmp/stream contains binary data.
@@ -169,9 +172,9 @@ movie_extpipe ffmpeg -y -f rawvideo -pix_fmt yuv420p -video_size %wx%h -framerat
     1. `-y` # overwrites output files without a prompt
     2. `-f rawvideo`
     3. `-pix_fmt yuv420p`
-    4. `-video_size %wx%h` # fields auto filled by Motion, defined in motion camera config file. Substitute with your video dimensions (ex. 1280x960).
-    5. `framerate %fps` # field auto filled by Motion. Substitute with your video's FPS (ex. 12)
-    6. `-i /tmp/stream` # will be replaced with `-i pipe:0` in Motion
+    4. `-video_size %wx%h` fields auto filled by Motion, defined in motion camera config file. Substitute with your video dimensions (ex. 1280x960).
+    5. `framerate %fps` field auto filled by Motion. Substitute with your video's FPS (ex. 12)
+    6. `-i /tmp/stream` will be replaced with `-i pipe:0` in Motion
     7. The rest of the fields pertain to the output format
 
 Once you've identified an ffmpeg command that works and successfully encodes the stream file, remove `movie_extpipe cat > /tmp/stream` from your Motion config and add your own with the format (`%`) values.
@@ -181,9 +184,9 @@ The `movie_extpipe` command that I used is:
 movie_extpipe ffmpeg -y -f rawvideo -pix_fmt yuv420p -video_size %wx%h -framerate %fps -hwaccel cuda -i pipe:0 -c:v h264_nvenc -b:v 2.5M -maxrate 2.5M -bufsize 1.75M -preset p7 -fps_mode vfr -tune hq %f.mp4
 ```
 
-### Results
+### Encoding Results
 
-I didn't have time to run tests and generate scientific results, but here are my observations after initial testing
+I didn't have time to run scientific tests, but here are my observations after initial testing
 
 1. Video sizes are between 1/3 to 1/2 of original size (!)
 2. Videos retained nearly identical quality to Motion's built in ffmpeg output and are generated more quickly
@@ -192,3 +195,47 @@ I didn't have time to run tests and generate scientific results, but here are my
 
 If everything works as expected, nvidia-smi should display ffmpeg process activity during encoding
 ![nvidia-ffmpeg](nvidia-smi-ffmpeg.png)
+
+## Use `netcam_url` and `netcam_high_url` to reduce CPU load
+
+Even though we're recording a 1920x1080 video, we can save system resources by using a small version of the same video stream for detection purposes. In order for this to work, your camera needs to be capable of offering separate streams. In my case, the motion_detect stream is 640x360 @ 15FPS, while the video output is 1920x1080 @ 30FPS. 
+
+For example,
+```
+netcam_url <detection stream URL>
+netcam_params capture_rate=15
+netcam_high_url <video stream URL>
+
+width 640  # Dimensions of detection stream
+height 360
+
+framerate 30 
+```
+
+We hardcode the `video_size` and `framerate` in the `movie_extpipe` command (otherwise, the detection stream values will be used, which may be a bug)
+```
+movie_extpipe ffmpeg -y -f rawvideo -pix_fmt yuv420p -video_size 1920x1080 -framerate 30 -hwaccel cuda -i pipe:0 -c:v h264_nvenc -b:v 2.5M -maxrate 2.5M -bufsize 1.75M -preset p7 -fps_mode vfr -tune hq %f.mp4
+```
+
+The Motion documentation has a good explanation of how the `capture_rate` works relative to the `framerate`: https://motion-project.github.io/motion_config.html#netcam_params
+
+## Compile Motion for NVIDIA hardware decoding 
+
+Since we compiled ffmpeg and its libraries, we can take this one step further by specifying a `decoder` to the [netcam_params](https://motion-project.github.io/motion_config.html#netcam_params). We'll need to link Motion to the ffmpeg libraries we compiled. 
+
+Thankfully, this is a lot simpler than compiling ffmpeg and Motion's got some great documentation in place.
+
+1. Install any packages needed for your distribution (see: https://motion-project.github.io/motion_build.html) and review configuration parameters
+I followed @tosiara's [example](https://github.com/tosiara/motion/wiki/ffmpeg) and used the following parameters:
+```
+./configure --with-ffmpeg=/usr/local/lib --prefix=/usr/ --libexecdir=/usr/bin --sysconfdir=/etc --without-v4l2 --without-webp --without-mysql --without-mariadb --without-pgsql -without-sqlite3 
+```
+Note 1: /usr/local/lib is where the ffmpeg libraries reside on my system
+Note 2: `--sysconfdir=/etc` ensures that the new binary will load configs from /etc/motion
+2. Update the linker to include the Cuda libraries `-L/usr/local/cuda/lib64`
+3. Compile!
+
+Modify the `netcam_params` to include `mjpeg_cuvid` as follows:
+```
+netcam_params capture_rate=15, decoder=mjpeg_cuvid
+```
