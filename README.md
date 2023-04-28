@@ -221,17 +221,14 @@ The Motion documentation has a good explanation of how the `capture_rate` works 
 
 ## Compile Motion for NVIDIA hardware decoding 
 
-Since we compiled ffmpeg and its libraries, we can take this one step further by specifying a `decoder` to the [netcam_params](https://motion-project.github.io/motion_config.html#netcam_params). We'll need to link Motion to the ffmpeg libraries we compiled. 
+Since we compiled ffmpeg and its libraries, we can take this one step further by specifying a `decoder` for the detection stream. To do this, we'll need to link Motion to the ffmpeg libraries we compiled earlier. Thankfully, this is a lot simpler than compiling ffmpeg and Motion's got some great documentation in place.
 
-Thankfully, this is a lot simpler than compiling ffmpeg and Motion's got some great documentation in place.
-
-1. Install any packages needed for your distribution (see: https://motion-project.github.io/motion_build.html) and review configuration parameters
-I followed @tosiara's [example](https://github.com/tosiara/motion/wiki/ffmpeg) and used the following parameters:
-```
-./configure --with-ffmpeg=/usr/local/lib --prefix=/usr/ --libexecdir=/usr/bin --sysconfdir=/etc --without-v4l2 --without-webp --without-mysql --without-mariadb --without-pgsql -without-sqlite3 
-```
-Note 1: /usr/local/lib is where the ffmpeg libraries reside on my system
-Note 2: `--sysconfdir=/etc` ensures that the new binary will load configs from /etc/motion
+1. Install any packages needed for your distribution (see: https://motion-project.github.io/motion_build.html) and review configuration parameters. I followed @tosiara's [example](https://github.com/tosiara/motion/wiki/ffmpeg) and used the following parameters:
+    ```
+    ./configure --with-ffmpeg=/usr/local/lib --prefix=/usr/ --libexecdir=/usr/bin --sysconfdir=/etc --without-v4l2 --without-webp --without-mysql --without-mariadb --without-pgsql -without-sqlite3 
+    ```
+    1. /usr/local/lib is where the ffmpeg libraries reside on my system
+    2. `--sysconfdir=/etc` ensures that the new binary will load configs from /etc/motion
 2. Update the linker to include the Cuda libraries `-L/usr/local/cuda/lib64`
 3. Compile!
 
