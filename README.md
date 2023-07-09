@@ -146,13 +146,15 @@ Getting the parameters right can be challenging. I recommend testing them out as
 ```
 event_extpipe_put: Error writing in pipe , state error 1: Broken pipe
 ```
-Performing the steps below will save a _**lot**_ of time versus testing Motion live. 
+Reviewing the "Test FFMPEG" steps below will save a _**lot**_ of time versus testing Motion live. 
 
 **Note 3:** Once everything is working, you may see an occasional error of:
 ```
 event_extpipe_put: pipe ffmpeg -y -f ... <filepath> not created or closed already
 ```
-This is a [known issue](https://github.com/Motion-Project/motion/issues/1659) with Motion and won't impact actual functionality. As of 4/6/2023, the fix has been merged into the main release branch. 
+This is a [known issue](https://github.com/Motion-Project/motion/issues/1659) with Motion and won't impact actual functionality. As of 4/6/2023, the fix has been merged into motion's main release branch. 
+
+### Test FFMPEG
 
 1. From the /etc/motion configuration directory, set aside a camera configuration for testing purposes. Load it in /etc/motion/motion.conf
 2. Use the following settings to dump Motion's video output to a file
@@ -168,7 +170,7 @@ movie_extpipe cat > /tmp/stream
 ```
 movie_extpipe ffmpeg -y -f rawvideo -pix_fmt yuv420p -video_size %wx%h -framerate %fps -i pipe:0 -vcodec libx264 -preset ultrafast -f mp4 %f.mp4
 ```
-5. Since the stream is a slice of video data, it doesn't contain an identifying header that ffmpeg can readily use to identify its content. We need to tell ffmpeg what it's working with (steps i-v are for this purpose). I recommend switching to the /tmp directory and testing your ffmpeg commands there to catch and resolve error messages.
+5. Since the stream is a slice of video data, it doesn't contain an identifying header that ffmpeg can readily use to identify its content. The stream file can be used to test the ffmpeg command that will be used in our Motion configuration. We need to tell ffmpeg what it's working with (steps i-v are for this purpose). I recommend switching to the /tmp directory and testing your ffmpeg commands there to catch and resolve error messages.
     1. `-y` # overwrites output files without a prompt
     2. `-f rawvideo`
     3. `-pix_fmt yuv420p`
@@ -195,6 +197,8 @@ I didn't have time to run scientific tests, but here are my observations after i
 
 If everything works as expected, nvidia-smi should display ffmpeg process activity during encoding
 ![nvidia-ffmpeg](nvidia-smi-ffmpeg.png)
+
+**Note:** NVIDIA consumer cards are [limited](https://developer.nvidia.com/video-encode-and-decode-gpu-support-matrix-new#Encoder) to a set number of simultaneous encoding streams regardless of the hardware's actual capabilities. There are some [workarounds](https://stackoverflow.com/questions/46393526/ffmpeg-cuda-encode-openencodesessionex-failed-out-of-memory) for this drawback.
 
 ## Use `netcam_url` and `netcam_high_url` to reduce CPU load
 
@@ -242,12 +246,12 @@ Since we compiled ffmpeg and its libraries, we can take this one step further by
    ```
    LIBS =    -L/usr/local/cuda/lib64 ...
    ```
-4. Compile!
+3. Compile!
 
-Modify the `netcam_params` to include `mjpeg_cuvid` as follows:
-```
-netcam_params capture_rate=15, decoder=mjpeg_cuvid
-```
+4. Modify the `netcam_params` to include `mjpeg_cuvid` in /etc/motion/motion.conf as follows:
+   ```
+   netcam_params capture_rate=15, decoder=mjpeg_cuvid
+   ```
 5. The motion process should now appear when running nvidia-smi:
 ![image](https://github.com/crowl0gic/ffmpeg-nvidia/assets/9098252/0b94992a-1411-44a3-891a-e0c4d81420bc)
 
