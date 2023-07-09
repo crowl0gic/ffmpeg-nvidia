@@ -221,7 +221,7 @@ The Motion documentation has a good explanation of how the `capture_rate` works 
 
 ## Compile Motion for NVIDIA hardware decoding 
 
-Since we compiled ffmpeg and its libraries, we can take this one step further by specifying a `decoder` for the detection stream. To do this, we'll need to link Motion to the ffmpeg libraries we compiled earlier. Thankfully, this is a lot simpler than compiling ffmpeg and Motion's got some great documentation in place.
+Since we compiled ffmpeg and its libraries, we can take this one step further by specifying a `decoder` for the detection stream. To do this, we need to link Motion to the ffmpeg libraries we compiled earlier. Thankfully, this is a lot simpler than compiling ffmpeg and Motion's got some great documentation in place.
 
 1. Install any packages needed for your distribution (see: https://motion-project.github.io/motion_build.html) and review configuration parameters. I followed @tosiara's [example](https://github.com/tosiara/motion/wiki/ffmpeg) and used the following parameters:
     ```
@@ -229,10 +229,25 @@ Since we compiled ffmpeg and its libraries, we can take this one step further by
     ```
     1. /usr/local/lib is where the ffmpeg libraries reside on my system
     2. `--sysconfdir=/etc` ensures that the new binary will load configs from /etc/motion
-2. Update the linker to include the Cuda libraries `-L/usr/local/cuda/lib64`
-3. Compile!
+2. You may encounter an error like:
+   ```
+   /usr/bin/ld: cannot find -lnppig
+   /usr/bin/ld: cannot find -lnppicc
+   /usr/bin/ld: cannot find -lnppc
+   /usr/bin/ld: cannot find -lnppidei
+   /usr/bin/ld: cannot find -lnppif
+   ```
+   When running make for the first time. This can be fixed by updating the linker to include Cuda libraries `-L/usr/local/cuda/lib64`
+   Edit ./src/Makefile, the change will be similar to:
+   ```
+   LIBS =    -L/usr/local/cuda/lib64 ...
+   ```
+4. Compile!
 
 Modify the `netcam_params` to include `mjpeg_cuvid` as follows:
 ```
 netcam_params capture_rate=15, decoder=mjpeg_cuvid
 ```
+5. The motion process should now appear when running nvidia-smi:
+![image](https://github.com/crowl0gic/ffmpeg-nvidia/assets/9098252/0b94992a-1411-44a3-891a-e0c4d81420bc)
+
